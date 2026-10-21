@@ -1,0 +1,5 @@
+main_thread_only = true;
+c_sources_windows = ["native/windows.c"];
+c_sources_linux = ["native/other.c"];
+c_sources_macos = ["native/macos.m"];
+c_libs_windows = ["dwmapi"];

@@ -1,0 +1,94 @@
+# Inactive template. Copy to .github/workflows/native.yml to enable manual runs.
+name: Native backends
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Native backend to validate
+        type: choice
+        default: macos
+        options: [macos, linux, windows, all]
+permissions:
+  contents: read
+jobs:
+  emit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python tools/bootstrap.py
+      - run: python tools/build.py all --mode debug --emit-only
+      - run: python tools/build.py all --mode small --emit-only
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-c
+          path: build/portable-*
+  macos:
+    if: inputs.platform == 'macos' || inputs.platform == 'all'
+    needs: emit
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python tools/bootstrap.py
+      - uses: actions/download-artifact@v4
+        with:
+          name: portable-c
+          path: build
+      - run: cmake -S . -B build/cmake-native -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build/cmake-native --parallel 2
+      - run: python tools/build.py all --mode debug --from-c build/portable-debug
+      - run: python tools/build.py all --mode small --from-c build/portable-small
+      - run: python tools/build.py gallery --mode small --dump build/macos-gallery.ppm
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-gallery
+          path: build/macos-gallery.ppm
+  linux:
+    if: inputs.platform == 'linux' || inputs.platform == 'all'
+    needs: emit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: portable-c
+          path: build
+      - run: sudo apt-get update && sudo apt-get install -y libx11-dev libcairo2-dev libpango1.0-dev xvfb
+      - run: cmake -S . -B build/cmake-native -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build/cmake-native --parallel 2
+      - run: MYGOOSE_TEST_CLIPBOARD=1 xvfb-run -a -s "-screen 0 1280x1024x24 -noreset" python tools/build.py all --mode debug --from-c build/portable-debug
+      - run: MYGOOSE_TEST_CLIPBOARD=1 xvfb-run -a -s "-screen 0 1280x1024x24 -noreset" python tools/build.py all --mode small --from-c build/portable-small
+  windows:
+    if: inputs.platform == 'windows' || inputs.platform == 'all'
+    needs: emit
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - uses: actions/download-artifact@v4
+        with:
+          name: portable-c
+          path: build
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          install: mingw-w64-x86_64-gcc
+      - shell: msys2 {0}
+        run: python tools/build.py all --mode debug --from-c build/portable-debug --gcc "$(cygpath -w /mingw64/bin/gcc.exe)"
+      - shell: msys2 {0}
+        run: python tools/build.py all --mode small --from-c build/portable-small --gcc "$(cygpath -w /mingw64/bin/gcc.exe)"

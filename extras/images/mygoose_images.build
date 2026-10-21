@@ -1,0 +1,5 @@
+main_thread_only = true;
+c_sources_windows = ["native/windows.c"];
+c_sources_linux = ["native/linux.c"];
+c_sources_macos = ["native/macos.c"];
+c_libs_linux = ["cairo"];

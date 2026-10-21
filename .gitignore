@@ -1,0 +1,12 @@
+/build/
+/.toolchain/
+__pycache__/
+.DS_Store
+*.exe
+*.obj
+*.pdb
+*.ilk
+*.bundle
+
+# Local benchmark captures
+/bench/*-results.json

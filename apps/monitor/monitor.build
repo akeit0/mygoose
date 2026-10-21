@@ -1,0 +1,2 @@
+main_thread_only = true;
+cmake_target = "mygoose_monitor_native";
