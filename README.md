@@ -25,16 +25,30 @@ required Windows dependencies. MyGoose uses no webview or bundled fonts.
 Linux uses X11 with Cairo/Pango; macOS uses AppKit with CoreGraphics/CoreText.
 The Goose core and examples are shared across all three backends.
 
-Small executables: representative Counter sizes in `small` mode:
+Representative Counter executable sizes (decimal KB):
 
-| Platform | Architecture | Executable size |
-| --- | --- | --- |
-| macOS | aarch64 (Apple Silicon) | ~120 KB |
-| Windows | x86-64 | ~103 KB |
-| Linux (Ubuntu under WSL2) | x86-64 | ~72 KB |
+| Platform | Architecture | Default `goose build` | MyGoose `small` build |
+| --- | --- | --- | --- |
+| macOS | aarch64 (Apple Silicon) | Not measured | ~120 KB |
+| Windows | x86-64 | ~428 KB | ~103 KB |
+| Linux (Ubuntu under WSL2) | x86-64 | Not measured | ~72 KB |
 
-These are approximate executable file sizes; system libraries are supplied by
-the OS. Size varies with the app, platform, compiler and build mode.
+The Windows measurements use the [pinned Goose revision](tools/toolchain.json)
+and MinGW-w64 GCC 15.2.0. The default is 427,605 bytes, built with
+`goose build examples/counter.goose --cc gcc -o build/counter-default.exe`.
+All three `small` measurements, including macOS aarch64, use
+`python3 tools/build.py counter --mode small` (use `python` on Windows).
+
+The [`small` build](tools/build.py) emits C with Goose `-O2 --standalone`,
+then compiles the application and native backend with `-Os`, `-flto` and
+`-ffunction-sections`. Linking removes unused code with `--gc-sections` on
+Windows/Linux or `-dead_strip` on macOS; Windows/Linux also use `-s` to strip
+symbols. Plain `goose build` uses native `-O2` (or MSVC `/O2`) without these
+extra size options.
+
+These are approximate executable file sizes, excluding macOS app-bundle icons
+and metadata. System libraries are supplied by the OS. Size varies with the
+app, platform, compiler and build mode.
 
 ## Build and run
 
@@ -72,7 +86,7 @@ Activity Monitor's visual design closely follows [Pulse](https://pulse.egoist.de
 by EGOIST. It is implemented with Goose, MyGoose and native C without using
 Pulse source code. See the [Monitor design credit](apps/monitor/README.md).
 
-On macOS, `python3 tools/macos.py --all --install` creates signed local app
+On macOS, `python3 tools/macos.py --all --install` creates ad-hoc signed local app
 bundles in `~/Applications/MyGoose`. Without `--all`, it installs Gallery and
 Activity Monitor. Monitor uses an integrated title bar with native traffic
 lights; `--window-style standard` keeps a separate system title bar.
@@ -231,7 +245,8 @@ Styles resolve into existing node fields: they add no palette per control.
 The monitor demonstrates compound icon buttons and selectable rows using
 `button_node`, which returns a node index for adding noninteractive children.
 
-Both text controls support these shortcuts:
+Both text controls support these shortcuts. On macOS, Command also acts as
+the Ctrl modifier for editing, including Command+A/C/X/V:
 
 | Shortcut | Action |
 | --- | --- |
@@ -336,12 +351,15 @@ to 256 MiB. These are deliberate bounds, not growable heap containers.
 A frame measures and arranges the tree, then compares scene hashes and exact
 geometry with the previous frame. `DamageRegions` owns up to 16 rectangles in a
 Goose bounded array and caches their enclosing bounds. Nearby updates are merged;
-overflow joins the region requiring the least added area. On macOS, the renderer clips to their union and skips controls
-in untouched gaps. The union clip is saved once per frame and reused by each
-control. A single AppKit invalidation amortizes presentation setup, using the
-existing cropped/full snapshot selection for the bounding rectangle. Windows and Linux currently use the
-bounding-rectangle fallback, preserving their existing painting behavior.
-An unchanged scene paints nothing. A normal window blocks in the native event loop when idle; `WindowOptions.animate_ms`
+overflow joins the region requiring the least added area. On macOS, the renderer
+clips to their union and skips controls in untouched gaps. The union clip is
+saved once per frame and reused by each control. A single AppKit invalidation
+shares presentation setup across the regions, using the cropped/full snapshot
+selection for the bounding rectangle. Windows preserves untouched gaps with a
+reusable union clip for sparse updates and skips their controls; dense updates
+use the bounding rectangle. Linux currently uses the bounding-rectangle fallback.
+An unchanged scene paints nothing. A normal window blocks in the native event
+loop when idle; `WindowOptions.animate_ms`
 enables animation explicitly, as the quotes example does. Animated core
 and motion runners use the window's display link on macOS 14 and newer by
 default. Display callbacks return through `mg_wait` on the caller's main thread;
