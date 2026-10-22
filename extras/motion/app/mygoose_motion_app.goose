@@ -1,5 +1,5 @@
 namespace mygoose_motion_app;
-import mygoose from "../../../src";
+import mygoose from "../../..";
 import mygoose_motion from "..";
 import std;
 

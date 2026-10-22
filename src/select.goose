@@ -1,7 +1,7 @@
 namespace mygoose;
 import std;
-import ui;
-import geom;
+import .ui;
+import .geom;
 
 struct MenuItem { label: const u8[:] = "", shortcut: const u8[:] = "", disabled: bool = false, separator: bool = false }
 fn open_context_menu(c: Context&, owner: u64, x: f32, y: f32) {

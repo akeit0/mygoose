@@ -1,5 +1,5 @@
 import .test_support;
-import mygoose from "../src";
+import mygoose from "..";
 import std;
 
 struct TableCase {

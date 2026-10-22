@@ -1,5 +1,5 @@
 namespace test_support;
-import mygoose from "../src";
+import mygoose from "..";
 
 // Compare a previously painted frame with an independent full repaint.
 fn full_repaint_equal<Paint>(c: mygoose::Context&, cache: mygoose::SceneCache&) {

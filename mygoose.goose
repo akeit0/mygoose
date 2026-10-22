@@ -1,0 +1,10 @@
+namespace mygoose;
+import .src.geom;
+import .src.damage;
+import .src.ui;
+import .src.select;
+import .src.scene;
+import .src.app;
+import .src.frame;
+import .src.scroll;
+import .src.table;

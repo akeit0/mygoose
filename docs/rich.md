@@ -39,7 +39,7 @@ first use, so entering a view does not animate from an arbitrary zero.
 ## Using a drawing region
 
 ```goose
-import mygoose from "path/to/mygoose/src";
+import mygoose from "path/to/mygoose";
 import mygoose_graphics from "path/to/mygoose/extras/graphics";
 import mygoose_motion from "path/to/mygoose/extras/motion";
 import mygoose_motion_app from "path/to/mygoose/extras/motion/app";
@@ -124,7 +124,7 @@ reduced-motion preferences automatically remains future work.
 
 ## Why basic apps stay small
 
-The packages have their own sidecars and are not imported by `src/mygoose.goose`.
+The packages have their own sidecars and are not imported by `mygoose.goose`.
 The renderer's extra painter is a compile-time parameter, with an empty basic
 specialization. `Context` and `Node` are unchanged. The motion clock exists only
 in the rich runner; ordinary windows block while idle.

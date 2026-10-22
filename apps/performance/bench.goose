@@ -1,4 +1,4 @@
-import mygoose from "../../src";
+import mygoose from "../..";
 import mygoose_charts from "../../extras/charts";
 import mygoose_performance from ".";
 import os;

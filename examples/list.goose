@@ -1,4 +1,4 @@
-import mygoose from "../src";
+import mygoose from "..";
 struct List { scroll: mygoose::ScrollState = mygoose::ScrollState {} }
 fn view(s: List&, c: mygoose::Context&) {
     mygoose::column(c, mygoose::Box { fill: true, padding: 20.0, gap: 12.0, align: 3 }) {

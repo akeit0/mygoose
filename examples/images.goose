@@ -1,4 +1,4 @@
-import mygoose from "../src";
+import mygoose from "..";
 import mygoose_images from "../extras/images";
 
 struct ImageDemo { picture: mygoose_images::Image = mygoose_images::Image {}, opacity: f32 = 1.0 }

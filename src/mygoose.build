@@ -1,2 +1,0 @@
-cmake_target = "mygoose_native";
-main_thread_only = true;

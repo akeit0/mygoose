@@ -1,5 +1,5 @@
 namespace mygoose_charts;
-import mygoose from "../../src";
+import mygoose from "../..";
 import std;
 
 struct Palette { surface: u32 = 0x202124, track: u32 = 0x37393e, text: u32 = 0xf2f3f5, muted: u32 = 0x7d8993 }

@@ -1,9 +1,9 @@
 namespace mygoose;
 import std;
-import geom;
-import ui;
-import select;
-import damage;
+import .geom;
+import .ui;
+import .select;
+import .damage;
 
 extern fn mg_paint_begin(x: f32, y: f32, w: f32, h: f32, background: u32);
 extern fn mg_paint_regions(rects: const Rect[:], background: u32) -> bool;

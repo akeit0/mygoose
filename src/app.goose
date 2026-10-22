@@ -1,7 +1,7 @@
 namespace mygoose;
-import ui;
-import scene;
-import frame;
+import .ui;
+import .scene;
+import .frame;
 
 struct WindowOptions { title: const u8[:] = "MyGoose", width: i32 = 640, height: i32 = 480, dark: bool = true, animate_ms: i32 = 0, display_sync: bool = true }
 extern fn mg_open(title: const u8[:], width: i32, height: i32, headless: bool) -> bool;

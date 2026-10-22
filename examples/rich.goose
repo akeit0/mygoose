@@ -1,4 +1,4 @@
-import mygoose from "../src";
+import mygoose from "..";
 import mygoose_graphics from "../extras/graphics";
 import mygoose_motion from "../extras/motion";
 import mygoose_motion_app from "../extras/motion/app";

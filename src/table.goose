@@ -1,6 +1,6 @@
 namespace mygoose;
-import ui;
-import scroll;
+import .ui;
+import .scroll;
 import std;
 
 // Stable IDs preserve widths when an app hides or reorders columns. Table

@@ -21,9 +21,10 @@ add_library(mygoose_native INTERFACE)
 if(MINGW)
     # Goose 448efe7 copies CMake's pkg\libfoo.a into a GCC response file
     # without escaping the backslash. Explicit -L/-l avoids that path spelling.
+    # Quote the directory inside the flag so paths with spaces also survive.
     # Reproducer/status: docs/goose-issues.md (GOOSE-001).
     add_dependencies(mygoose_native mygoose_native_impl)
-    target_link_libraries(mygoose_native INTERFACE "-L${CMAKE_CURRENT_BINARY_DIR}" -lmygoose_native_impl user32 gdi32 imm32 d2d1 dwrite)
+    target_link_libraries(mygoose_native INTERFACE "-L\"${CMAKE_CURRENT_BINARY_DIR}\"" -lmygoose_native_impl user32 gdi32 imm32 d2d1 dwrite)
 else()
     target_link_libraries(mygoose_native INTERFACE mygoose_native_impl)
 endif()

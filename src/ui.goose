@@ -1,7 +1,7 @@
 namespace mygoose;
 import std;
-import geom;
-import damage;
+import .geom;
+import .damage;
 
 // Fixed storage deliberately bounds memory and makes overflow explicit.
 let max_nodes: i32 = 1024;

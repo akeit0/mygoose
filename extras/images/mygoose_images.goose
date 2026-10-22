@@ -1,5 +1,5 @@
 namespace mygoose_images;
-import mygoose from "../../src";
+import mygoose from "../..";
 import std;
 
 // Uploaded images are immutable and explicitly owned. Updating one means

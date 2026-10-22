@@ -1,5 +1,5 @@
 namespace mygoose;
-import mygoose from "../../src";
+import mygoose from "../..";
 import mygoose_graphics from "../../extras/graphics";
 import sampler;
 import icons;

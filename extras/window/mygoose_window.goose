@@ -1,5 +1,5 @@
 namespace mygoose_window;
-import mygoose from "../../src";
+import mygoose from "../..";
 import mygoose_graphics from "../graphics";
 import std;
 

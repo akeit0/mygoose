@@ -1,5 +1,5 @@
 namespace mygoose;
-import ui;
+import .ui;
 
 struct DividerOptions { key: const u8[:] = "", width: f32 = 8.0, height: f32 = 25.0, step: f32 = 8.0 }
 fn column_divider(c: Context&, width: f32&,

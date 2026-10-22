@@ -1,5 +1,5 @@
 namespace mygoose;
-import mygoose from "../../src";
+import mygoose from "../..";
 import mygoose_charts from "../../extras/charts";
 
 // Monitor colors adapt the reusable optional package to this application's theme.

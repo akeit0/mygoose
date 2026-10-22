@@ -1,4 +1,4 @@
-import mygoose from "../src";
+import mygoose from "..";
 struct Counter { n: i64 = 0 }
 fn view(s: Counter&, c: mygoose::Context&) {
     mygoose::column(c, mygoose::Box { fill: true, center: true, gap: 16.0 }) {

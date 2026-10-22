@@ -1,4 +1,4 @@
-import mygoose from "../src";
+import mygoose from "..";
 import mygoose_charts from "../extras/charts";
 import std;
 struct Charts { fraction: f32 = 0.56 }

@@ -87,7 +87,10 @@ archive argument now double-quoted. The original affected targets and workaround
 **Workaround:** preserve the implementation build dependency, and link with
 `-L${CMAKE_CURRENT_BINARY_DIR}` and `-lmygoose_native_impl` (or the Monitor
 implementation name) rather than passing CMake's archive path. Keep this local
-to `MINGW`; other toolchains link the target normally.
+to `MINGW`; other toolchains link the target normally. Quote the directory
+inside the `-L` flag so cache paths containing spaces survive CMake and the
+response file. `target_link_directories` can emit Windows short paths with
+backslashes, exposing the same escaping problem again.
 
 **Upstream investigation:** the CMake response-file writer in
 [`src/native.h` at the pin](https://github.com/aardappel/goose/blob/448efe7021f7e6a2357d20c717f1aa9c8798b2f2/src/native.h)

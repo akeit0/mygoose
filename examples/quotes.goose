@@ -1,4 +1,4 @@
-import mygoose from "../src";
+import mygoose from "..";
 struct Quotes { clock: mygoose::AnimationClock = mygoose::AnimationClock {}, paused: bool = false }
 fn view(s: Quotes&, c: mygoose::Context&) {
     let tick = mygoose::animation_elapsed_ns(s.clock, s.paused) / 16000000;

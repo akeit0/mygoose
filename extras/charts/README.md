@@ -5,7 +5,7 @@ drawing ABI on Windows, Linux and macOS. No monitor, sampler, vector or motion
 package is required. Charts add nothing to core `Context` or `Node` storage.
 
 ```goose
-import mygoose from "path/to/mygoose/src";
+import mygoose from "path/to/mygoose";
 import mygoose_charts from "path/to/mygoose/extras/charts";
 
 struct ChartDemo { fraction: f32 = 0.56 }

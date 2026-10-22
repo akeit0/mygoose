@@ -1,4 +1,4 @@
-import mygoose from "../src";
+import mygoose from "..";
 struct Events { last: mygoose::Event = mygoose::Event {}, count: i64 = 0 }
 fn view(s: Events&, c: mygoose::Context&) {
     if c.event.kind != 0 { s.last = c.event; s.count += 1; }

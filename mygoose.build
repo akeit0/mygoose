@@ -1,0 +1,3 @@
+cmake_target = "mygoose_native";
+main_thread_only = true;
+exclude = ["apps", "bench", "examples", "extras", "tests", "tools", "build", ".toolchain"];

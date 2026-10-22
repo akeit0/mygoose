@@ -1,5 +1,5 @@
 import .test_support;
-import mygoose from "../src";
+import mygoose from "..";
 import std;
 
 struct ButtonState { selected: bool = false, disabled: bool = false, align: i32 = 0, clicks: i32 = 0, black: bool = false }

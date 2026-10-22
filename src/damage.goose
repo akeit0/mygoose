@@ -1,5 +1,5 @@
 namespace mygoose;
-import geom;
+import .geom;
 import std;
 
 let max_damage_regions: i32 = 16;

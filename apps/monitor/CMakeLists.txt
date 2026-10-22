@@ -19,7 +19,7 @@ if(MINGW)
     # As in the core package, avoid Goose's unescaped CMake backslash paths.
     # See docs/goose-issues.md (GOOSE-001) in the repository root.
     add_dependencies(mygoose_monitor_native mygoose_monitor_native_impl)
-    target_link_libraries(mygoose_monitor_native INTERFACE "-L${CMAKE_CURRENT_BINARY_DIR}" -lmygoose_monitor_native_impl psapi iphlpapi pdh advapi32 shell32 ole32)
+    target_link_libraries(mygoose_monitor_native INTERFACE "-L\"${CMAKE_CURRENT_BINARY_DIR}\"" -lmygoose_monitor_native_impl psapi iphlpapi pdh advapi32 shell32 ole32)
 else()
     target_link_libraries(mygoose_monitor_native INTERFACE mygoose_monitor_native_impl)
 endif()

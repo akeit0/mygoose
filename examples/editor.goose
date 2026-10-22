@@ -1,4 +1,4 @@
-import mygoose from "../src";
+import mygoose from "..";
 import os;
 struct Editor { doc: mygoose::TextDocument = mygoose::TextDocument {}, path: u8[..1024] = "notes.txt", saved: bool = false, failed: bool = false }
 fn view(s: Editor&, c: mygoose::Context&) {

@@ -1,5 +1,5 @@
 namespace mygoose;
-import mygoose from "../../src";
+import mygoose from "../..";
 import mygoose_graphics from "../../extras/graphics";
 
 // Original 24-unit outline icons. Coordinates scale with the native UI's DPI.

@@ -92,20 +92,27 @@ optional painters and handle animation time.
 
 ## Source layout
 
-The core Goose package lives in `src/`, with `src/mygoose.goose` as its entry
-and `src/mygoose.build` declaring the native dependency. Import that directory
-from the cloned repository, as shown below. Optional packages stay in `extras/`,
-apps in `apps/`, and OS backends in `native/`.
+The small root entry `mygoose.goose` imports the implementation in `src/`;
+`mygoose.build` declares the native dependency. Optional packages stay in
+`extras/`, apps in `apps/`, and OS backends in `native/`.
 
-The pinned Goose compiler resolves Git package entries at the repository root;
-it cannot import this `src/` layout directly from a Git URL. Clone the repository
-and import its `src/` directory. Both `tools/build.py` and `goose build` support
-this layout.
+With Goose, CMake and the platform dependencies installed, another app can
+import MyGoose from Git as shown below. `goose build app.goose` fetches the
+package and builds its native backend automatically. On Windows with MinGW,
+use `goose build app.goose --cc gcc`; on macOS, use `--cc clang`.
+The [standalone Counter example](examples/remote_counter.goose) can be copied
+to an empty directory and built this way. Pin a commit instead of `main` for
+reproducible builds; update a cached branch with `goose fetch --update app.goose`.
+
+For development against a checkout, use `import mygoose from "../mygoose";`.
+For optional packages, import the core and extensions from the same checkout,
+using paths such as `../mygoose/extras/charts`. Goose's Git import syntax does
+not select package subdirectories.
 
 ## A view
 
 ```goose
-import mygoose from "path/to/mygoose/src";
+import mygoose from "github.com/akeit0/mygoose@main";
 
 struct Counter { n: i64 = 0 }
 

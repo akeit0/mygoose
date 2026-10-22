@@ -1,5 +1,5 @@
 import .test_support;
-import mygoose from "../src";
+import mygoose from "..";
 import mygoose_charts from "../extras/charts";
 import std;
 struct Charts { ratio: f32 = 0.0, offset: f32 = 0.0, light: bool = false, value: f32 = 40.0, bars: bool = false }

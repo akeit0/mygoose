@@ -1,4 +1,4 @@
-import mygoose from "../src";
+import mygoose from "..";
 import std;
 
 fn animation_clocks() {

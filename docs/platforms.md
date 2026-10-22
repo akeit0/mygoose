@@ -13,7 +13,7 @@ No platform loads or links the other platforms' implementations.
 | Windows | `native/windows/` | Win32, Direct2D/DirectWrite, IMM/candidate caret |
 | Linux | `native/linux/` | X11, Cairo/Pango, XIM, selection clipboard |
 | macOS | `native/macos/` | AppKit, CoreGraphics/CoreText, NSTextInputClient, NSPasteboard |
-| Package integration | `src/mygoose.build`, `src/CMakeLists.txt`, `CMakeLists.txt` | Native dependencies selected for the build host |
+| Package integration | `mygoose.goose`, `mygoose.build`, `CMakeLists.txt` | Root package entry and native dependencies selected for the build host |
 | Local builds | `tools/build.py` | Native compiler, OS-specific flags and test selection |
 
 Windows debug/release tests and Linux tests on Ubuntu 22.04 under WSL2 pass

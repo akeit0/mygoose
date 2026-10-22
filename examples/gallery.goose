@@ -1,4 +1,4 @@
-import mygoose from "../src";
+import mygoose from "..";
 struct Gallery {
     name: mygoose::TextInput = mygoose::TextInput {}, notifications: bool = true,
     dark: bool = true, volume: f32 = 40.0, saves: i64 = 0,
