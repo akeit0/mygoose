@@ -25,7 +25,7 @@ fn region_area_cases() {
     // including the enlarged rectangles chosen when capacity is exceeded.
     for count in [1, 8, 16, 80] {
         mygoose::clear_damage(regions);
-        for i in count { mygoose::add_damage(regions, mygoose::Rect { (i * 13 % 50) as f32, (i * 19 % 50) as f32, 7.0, 9.0 }); }
+        for i in count { mygoose::add_damage(regions, mygoose::Rect { i * 13 % 50, i * 19 % 50, 7.0, 9.0 }); }
         var pixels: i32 = 0;
         for y in 64 { for x in 64 {
             var hit = false;

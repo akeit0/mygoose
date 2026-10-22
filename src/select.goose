@@ -130,7 +130,7 @@ fn select(c: Context&, labels: const u8[:][:], selected: i64&, options: SelectOp
     for index in c.popup_first..min(labels.len, c.popup_first + c.popup_rows) {
         let item = add(c, 13, labels[index]); let option .= c.nodes[item];
         option.id = popup_item_id(n.id, index); option.overlay = true;
-        option.value = (index - c.popup_first) as f32; option.checked = index == selected;
+        option.value = index - c.popup_first; option.checked = index == selected;
         option.background = if index == c.popup_highlight { c.theme.accent } else { c.theme.surface };
         option.color = if index == c.popup_highlight { c.theme.accent_text } else { c.theme.text };
     }
