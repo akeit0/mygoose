@@ -9,6 +9,7 @@ import .button_cases;
 import .table_cases;
 import .interaction_cases;
 import .selection_cases;
+import .scroll_cases;
 
 struct State {
     count: i64 = 0, checked: bool = false, enabled: bool = true, volume: f32 = 25.0,
@@ -110,6 +111,7 @@ fn native_input_cases() {
     print("PASS: shared native event ingestion, preedit/commit, resize cache/capture invalidation and blur cleanup\n");
 }
 fn main() {
+    run_scroll_cases();
     animation_clocks(); pacing(); paced_input();
     mygoose::headless_open(400, 400); native_input_cases();
     var c = mygoose::Context {}; var cache = mygoose::SceneCache {}; var s = State {};

@@ -355,7 +355,7 @@ fn work(s: Performance&) {
 }
 struct FrameCost { build_ns: i64 = 0, paint_ns: i64 = 0, painted: bool = false }
 fn render(s: Performance&, c: mygoose::Context&, cache: mygoose::SceneCache&, frame_due: bool, kind: i32) -> FrameCost {
-    let paused = s.paused; let input = kind != 0 && kind != 9;
+    let paused = s.paused; let input = kind != 0 && kind != 9 && (kind != mygoose::event_scroll || paused);
     let start = mygoose::mg_clock_ns();
     // Consume input at its arrival rate, even when active paints are paced.
     if frame_due || input { build(s,c,mygoose::mg_width(),mygoose::mg_height()); }

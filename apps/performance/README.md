@@ -63,6 +63,10 @@ Change CPU work (0–12 ms/frame), select 8–96 animated tiles, or inject a sin
 24 ms CPU-work spike. Click tiles, type Unicode text, switch theme, and scroll
 10,000 virtual rows. The page and list scroll independently, with wheel input
 returning to the page at list boundaries. Resizing reflows cards and tiles.
+Windows mouse-wheel notches update a destination sampled on every frame and
+preserve velocity through continuous input. Moving the pointer does not
+interrupt the page or list's motion. Paused scrolling also animates; fractional
+wheel input and macOS native scrolling remain direct.
 Pause stops the continuous workload while charts sample at roughly 4 Hz; Reset
 clears timing/history counters. A small header animation remains visible while
 running so FPS can be measured even with the tile grid below the viewport.

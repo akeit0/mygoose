@@ -471,6 +471,8 @@ int32_t mg_wait(int32_t timeout_ms) {
 }
 float mg_event_x(void) { return mg.x; } float mg_event_y(void) { return mg.y; } float mg_event_delta(void) { return mg.delta; }
 bool mg_event_scroll_pixels(void) { return mg.scroll_pixels; }
+bool mg_event_scroll_smooth(void) { return false; }
+void mg_scroll_animation(bool active) { (void)active; }
 int32_t mg_event_code(void) { return mg.code; } int32_t mg_event_mods(void) { return mg.mods; }
 float mg_width(void) { return mg.width/mg.scale; } float mg_height(void) { return mg.height/mg.scale; }
 static mg_font *font_for(float size,bool bold) {

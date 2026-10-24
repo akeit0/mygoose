@@ -97,3 +97,28 @@ scrollbar(c, offset, viewport_length, content_length, vertical, options);
 `TableState` holds column widths and scroll offsets; `ScrollAreaState` holds
 the offset and measured content height. Use `interaction(c, index)` for
 capture and focus styling.
+
+## Mouse wheel scrolling
+
+On Windows, whole mouse-wheel notches update a control's clamped destination.
+Scroll areas, virtual lists and text areas sample that destination animation on
+every frame, including frames caused by pointer movement or a timer. Repeated
+notches preserve the current velocity; large movements finish more quickly.
+The curve takes 100–200 ms, shortened further when needed to avoid overshoot.
+Reversing direction discards pending travel in the old direction.
+
+The design follows Chromium's [scroll animation and velocity-preserving
+retargeting](https://github.com/chromium/chromium/blob/main/cc/animation/scroll_offset_animation_curve.cc)
+and Firefox's [destination-based frame sampling](https://github.com/mozilla/gecko-dev/blob/master/gfx/layers/apz/src/GenericScrollAnimation.cpp).
+Motion belongs to the control, so moving the pointer cannot discard distance
+or move an unfinished gesture to another scroller. A click, keyboard input,
+focus loss, resize, control removal or an explicit offset change stops it.
+Fractional wheel input and macOS scrolling remain direct.
+
+`Event.scroll_smooth` marks coarse input to animate. Custom loops continue to
+pass every native event through `send_native` and build with `build_frame`.
+Event 16 requests an animation frame while a scroll is active; it carries no
+wheel delta and never moves the pointer. The normal paint cadence still applies
+in animated apps. Paused and idle apps can paint these wakes immediately.
+Windows uses a high-resolution waitable timer when available, with a regular
+timer fallback, and stops requesting wakes when the animation finishes.

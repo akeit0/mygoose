@@ -2,6 +2,8 @@ namespace mygoose;
 import std;
 import .geom;
 import .damage;
+import .scroll_motion;
+import .frame;
 
 // Fixed storage deliberately bounds memory and makes overflow explicit.
 let max_nodes: i32 = 1024;
@@ -84,12 +86,45 @@ struct AreaOptions { width: f32 = 0.0, height: f32 = 300.0, size: f32 = 14.0, li
 struct Event {
     // 0=none, 1=move, 2=press, 3=release, 4=wheel, 5=key, 6=Unicode scalar,
     // 7=blur/dismiss focus, 8=resize/DPI, 9=timer, 10=IME preedit, 11=commit, 12=cancel/end,
-    // 13=lost native pointer capture (keyboard focus is retained), 14=context menu request, 15=display frame.
+    // 13=lost native pointer capture (keyboard focus is retained), 14=context menu request,
+    // 15=display frame, 16=scroll animation wake.
     kind: i32 = 0, x: f32 = 0.0, y: f32 = 0.0, code: i32 = 0, delta: f32 = 0.0,
-    shift: bool = false, ctrl: bool = false, scroll_pixels: bool = false
+    shift: bool = false, ctrl: bool = false, scroll_pixels: bool = false, scroll_smooth: bool = false
 }
 // Pixel input is already a distance. Detents retain each control's wheel step.
 fn scroll_distance(e: Event, step: f32) -> f32 { if e.scroll_pixels { e.delta } else { e.delta * step } }
+// One wheel gesture owns one control. Sampling is independent of event kind,
+// so a frame triggered by a timer or mouse movement always has a fresh offset.
+fn scroll_offset(c: Context&, id: u64, offset: f32, limit: f32, step: f32, hovered: bool) -> f32 {
+    let maximum = max(0.0, limit);
+    if c.scroll_owner == id {
+        if offset != c.scroll.value as! f32 { c.scroll_owner = 0; }
+        else {
+            c.scroll_seen = true;
+            if c.scroll.target > maximum { target_scroll(c.scroll, maximum, c.frame_ns); }
+        }
+    }
+    if c.event.kind == 4 && hovered {
+        let distance = -scroll_distance(c.event, step);
+        if c.event.scroll_smooth && !c.event.scroll_pixels {
+            if c.scroll_owner != id {
+                c.scroll = ScrollMotion { value: offset, target: offset }; c.scroll_owner = id;
+            }
+            sample_scroll(c.scroll, c.frame_ns);
+            let reverse = (c.scroll.target - c.scroll.value) * distance < 0.0;
+            let target = clamp((if reverse { c.scroll.value } else { c.scroll.target }) + distance, 0.0, maximum) as! f32;
+            if reverse { c.scroll.velocity = 0.0; c.scroll.active = false; }
+            target_scroll(c.scroll, target, c.frame_ns); c.scroll_seen = true;
+        } else {
+            if c.scroll_owner == id { c.scroll_owner = 0; }
+            return clamp(offset + distance, 0.0, maximum);
+        }
+    }
+    if c.scroll_owner != id { return clamp(offset, 0.0, maximum); }
+    let value = clamp(sample_scroll(c.scroll, c.frame_ns), 0.0, maximum);
+    if !c.scroll.active { c.scroll_owner = 0; }
+    value
+}
 struct Node {
     // 0=column, 1=row, 2=text, 3=button, 4=check, 5=toggle, 6=slider, 7=progress, 8=input, 9=divider.
     // 10=text area, 11=select, 12=popup, 13=option; kinds 14+ are named above.
@@ -145,6 +180,8 @@ struct Context {
     event: Event = Event {}, mouse_x: f32 = -1.0, mouse_y: f32 = -1.0,
     hot: u64 = 0, active: u64 = 0, focus: u64 = 0, clicked: u64 = 0,
     pointer: PointerState = PointerState {},
+    scroll: ScrollMotion = ScrollMotion {}, scroll_owner: u64 = 0,
+    scroll_seen: bool = false, frame_ns: i64 = 0,
     changed: bool = false, keyboard_focus: bool = false, dirty: Rect = Rect {}, force: bool = true,
     regions: DamageRegions = DamageRegions {}, paint_regions: i32 = 0,
     last_background: u32 = 0, frames: i64 = 0, paints: i64 = 0,
@@ -160,6 +197,7 @@ extern fn mg_clipboard_set(text: const u8[:]) -> bool;
 // 0: arrow, 1: horizontal resize. Applied centrally after layout and hit testing.
 extern fn mg_cursor(shape: i32);
 extern fn mg_capture(enabled: bool) -> bool;
+extern fn mg_scroll_animation(active: bool);
 
 fn node_text(c: Context&, i: i32) -> u8[:] {
     let n .= c.nodes[i]; c.text_bytes[n.start..n.start + n.length]
@@ -316,6 +354,7 @@ fn send(c: Context&, e: Event) {
     if e.kind == 5 && c.ime.active { c.event = Event {}; c.clicked = 0; return; }
     finish_input(c);
     c.event = e; c.clicked = 0;
+    if e.kind == 2 || e.kind == 5 || e.kind == 7 || e.kind == 8 || e.kind == 14 { c.scroll_owner = 0; }
     if e.kind == 14 { c.popup = 0; cancel_pointer(c); cancel_composition(c); c.keyboard_focus = false; }
     if e.kind == 2 { c.keyboard_focus = false; }
     if e.kind == 5 { c.keyboard_focus = true; }
@@ -391,8 +430,9 @@ fn composition(c: Context&, value: const u8[:], cursor: i64 = 0, target_start: i
     c.ime.target_end = max(c.ime.target_start, utf8_boundary(value, target_end));
 }
 fn begin(c: Context&, width: f32, height: f32) {
-    if c.width != width || c.height != height { c.force = true; cancel_pointer(c, cancel_resize); }
+    if c.width != width || c.height != height { c.force = true; cancel_pointer(c, cancel_resize); c.scroll_owner = 0; }
     c.width = width; c.height = height; c.count = 0; c.text_count = 0; c.parent = -1; c.changed = false;
+    c.frame_ns = mg_frame_time_ns(); c.scroll_seen = false;
     let root = add(c, 0, "", "root");
     c.nodes[root].box = Box { width: width, height: height, align: 3 };
     c.parent = root;
@@ -764,8 +804,7 @@ fn begin_list(c: Context&, state: ScrollState&, total: i64, row_height: f32, box
     assert(total >= 0 && row_height > 0.0 && box.height > 0.0);
     column(c, box, key); let n .= c.nodes[c.parent]; n.box.clip = true; n.box.padding = 0.0; n.box.gap = 0.0;
     let r = prior_rect(c, n.id);
-    if c.event.kind == 4 && contains(r, c.mouse_x, c.mouse_y) { state.offset -= scroll_distance(c.event, row_height * 3.0); }
-    state.offset = clamp(state.offset, 0.0, max(0.0, total * row_height - box.height));
+    state.offset = scroll_offset(c, n.id, state.offset, total * row_height - box.height, row_height * 3.0, contains(r, c.mouse_x, c.mouse_y));
     let first = (state.offset / row_height) as! i64;
     let end_index = min(total, first + (box.height / row_height) as! i64 + 2);
     // A negative top spacer places the fractional row at its true position.
@@ -893,7 +932,6 @@ fn text_area(c: Context&, t: TextDocument&, options: AreaOptions = AreaOptions {
     let r = prior_rect(c, n.id); let e = c.event;
     var changed = false; var follow = false;
     t.cursor = clamp(t.cursor, 0, t.bytes.len); t.anchor = clamp(t.anchor, 0, t.bytes.len);
-    if e.kind == 4 && contains(r, c.mouse_x, c.mouse_y) { t.scroll -= scroll_distance(e, height * 3.0); }
     if c.focus == n.id {
         if e.kind == 6 { changed = insert_scalar(t, e.code); follow = true; }
         if e.kind == 11 && c.ime.owner == n.id { changed = insert_text(t, c.ime.text); follow = true; }
@@ -949,7 +987,7 @@ fn text_area(c: Context&, t: TextDocument&, options: AreaOptions = AreaOptions {
         if caret_line * height < t.scroll { t.scroll = caret_line * height; }
         if (caret_line + 1) * height > t.scroll + viewport { t.scroll = (caret_line + 1) * height - viewport; }
     }
-    t.scroll = clamp(t.scroll, 0.0, max(0.0, lines * height - viewport));
+    t.scroll = scroll_offset(c, n.id, t.scroll, lines * height - viewport, height * 3.0, contains(r, c.mouse_x, c.mouse_y));
     let first = (t.scroll / height) as! i64; let last = first + (viewport / height) as! i64 + 2;
     n.value = -(t.scroll - first * height); c.parent = i;
     var start = 0; var line = 0;

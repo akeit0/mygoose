@@ -85,11 +85,11 @@ struct ScrollAreaOptions {
 fn begin_scroll_area(c: Context&, state: ScrollAreaState&, box: Box, options: ScrollAreaOptions = ScrollAreaOptions {}) -> ScrollViewport {
     assert(box.width > options.scrollbar.thickness + 6.0 && box.height > 1.0);
     row(c, Box { width: box.width, height: box.height, gap: 6.0, background: box.background, radius: box.radius }, options.key);
-    let previous = prior_rect(c, c.nodes[c.parent].id);
+    let id = c.nodes[c.parent].id; let previous = prior_rect(c, id);
     let width = box.width - options.scrollbar.thickness - 6.0;
     column(c, Box { width: width, height: box.height, clip: true }, "viewport"); let outer = c.parent;
-    if c.event.kind == 4 && contains(previous, c.mouse_x, c.mouse_y) { state.offset -= scroll_distance(c.event, options.step); }
-    state.offset = clamp(state.offset, 0.0, max(0.0, state.content - box.height)); c.nodes[outer].value = -state.offset;
+    state.offset = scroll_offset(c, id, state.offset, state.content - box.height, options.step, contains(previous, c.mouse_x, c.mouse_y));
+    c.nodes[outer].value = -state.offset;
     column(c, Box { width: width, gap: options.gap, padding: options.padding }, "content");
     ScrollViewport { outer: outer, content: c.parent, width: width, height: box.height }
 }

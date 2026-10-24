@@ -312,4 +312,6 @@ fn build_frame<T, View>(c: Context&, state: T&, width: f32, height: f32) {
     begin(c, width, height); View(state, c); finish(c); let changed = c.changed;
     finish_input(c);
     if changed { begin(c, width, height); View(state, c); finish(c); }
+    if !c.scroll_seen { c.scroll_owner = 0; }
+    mg_scroll_animation(c.scroll_owner != 0);
 }

@@ -53,6 +53,31 @@ static int next_input(int expected) {
     }
     return -1;
 }
+static void wheel_cases(void) {
+    POINT p = {24,32}; ClientToScreen(mg.window,&p);
+    PostMessageW(mg.window,WM_MOUSEWHEEL,MAKEWPARAM(0,-WHEEL_DELTA),MAKELPARAM(p.x,p.y));
+    assert(next_input(4)==4 && !mg_event_scroll_pixels() && mg_event_scroll_smooth());
+    assert(mg.delta==-1.0f); // Input stays intact; controls animate destinations.
+    assert(mg.x==24.0f/mg.scale && mg.y==32.0f/mg.scale);
+    mg_scroll_animation(true);
+    int64_t next = mg.scroll_next_ns;
+    mg.scroll_next_ns = mg_clock_ns()+1000000000;
+    assert(mg_wait(1)==9); // A short caller deadline still wins.
+    mg.scroll_next_ns = next;
+    for (int i=0;i<5;i++) {
+        assert(mg_wait(0)==MG_EVENT_SCROLL);
+        assert(mg.delta==0.0f && !mg_event_scroll_smooth());
+        assert(mg.x==24.0f/mg.scale && mg.y==32.0f/mg.scale);
+    }
+    mg.scroll_next_ns = mg_clock_ns()-1;
+    PostMessageW(mg.window,WM_KEYDOWN,VK_RIGHT,0);
+    assert(mg_wait(0)==5); // A late animation cannot starve queued input.
+    mg_scroll_animation(false);
+    assert(mg_wait(2)==9); // No animation wakes once the control finishes.
+    PostMessageW(mg.window,WM_MOUSEWHEEL,MAKEWPARAM(0,-30),MAKELPARAM(p.x,p.y));
+    assert(next_input(4)==4 && mg.delta==-0.25f && !mg_event_scroll_smooth());
+    puts("PASS: intact coarse/fractional wheel input, separate animation wakes, deadlines and idle cancellation");
+}
 int main(void) {
     mg_string not_owned = {(const uint8_t *)"not owned", 9};
     assert(!mg_clipboard_set(not_owned)); // No HWND: fail without touching the OS clipboard.
@@ -67,6 +92,7 @@ int main(void) {
     assert(mg.window && IsWindow(mg.window));
     assert(mg.width > 0 && mg.height > 0);
     resize_buffer_cases(); resize_modal_cases();
+    wheel_cases();
     HCURSOR previous_pointer = GetCursor();
     mg_cursor(1); assert(mg.pointer == LoadCursor(NULL, IDC_SIZEWE));
     assert(SendMessageW(mg.window, WM_SETCURSOR, (WPARAM)mg.window, MAKELPARAM(HTCLIENT, WM_MOUSEMOVE)) == TRUE);

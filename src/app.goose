@@ -12,6 +12,7 @@ extern fn mg_event_y() -> f32;
 extern fn mg_event_code() -> i32;
 extern fn mg_event_delta() -> f32;
 extern fn mg_event_scroll_pixels() -> bool;
+extern fn mg_event_scroll_smooth() -> bool;
 extern fn mg_event_mods() -> i32;
 extern fn mg_width() -> f32;
 extern fn mg_height() -> f32;
@@ -41,7 +42,8 @@ fn send_native(c: Context&, kind: i32) {
         _ => {
             let mods = mg_event_mods();
             send(c, Event { kind: kind, x: mg_event_x(), y: mg_event_y(), code: mg_event_code(),
-                delta: mg_event_delta(), shift: (mods & 1) != 0, ctrl: (mods & 2) != 0, scroll_pixels: mg_event_scroll_pixels() });
+                delta: mg_event_delta(), shift: (mods & 1) != 0, ctrl: (mods & 2) != 0,
+                scroll_pixels: mg_event_scroll_pixels(), scroll_smooth: kind == 4 && mg_event_scroll_smooth() });
         },
     }
 }
@@ -68,7 +70,7 @@ fn run<T, View, Paint>(state: T&, options: WindowOptions = WindowOptions {}) {
         let kind = if !synced && options.animate_ms > 0 && wait == 0 { 0 } else { mg_wait(wait) };
         if kind < 0 { break; }
         let tick = options.animate_ms <= 0 || frame_tick(pacer, mg_clock_ns(), kind, synced);
-        if !tick && (kind == 0 || kind == 9) { continue; }
+        if !tick && (kind == 0 || kind == 9 || kind == event_scroll) { continue; }
         send_native(c, kind);
         build_frame(c, state, mg_width(), mg_height(), View);
         // Input is consumed immediately; cache only frames actually painted.

@@ -29,7 +29,9 @@ static struct {
     DWORD pump_thread;
     bool converted_thread, dispatching, stopping;
     int wait_timeout, wait_result;
-    ULONGLONG wait_deadline;
+    int64_t wait_deadline, scroll_next_ns;
+    HANDLE wait_timer;
+    bool scroll_animating, scroll_smooth;
     RECT dirty;
     uint16_t high_surrogate;
     DWORD click_time;
@@ -222,7 +224,10 @@ static LRESULT CALLBACK mg_proc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_MOUSEWHEEL: {
         POINT p = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)}; ScreenToClient(hwnd, &p);
         mg.x = p.x / mg.scale; mg.y = p.y / mg.scale;
-        mg.delta = (float)GET_WHEEL_DELTA_WPARAM(wp) / WHEEL_DELTA; mg.event = 4; return 0;
+        int delta = GET_WHEEL_DELTA_WPARAM(wp);
+        mg.scroll_smooth = delta && delta % WHEEL_DELTA == 0;
+        mg.delta = (float)delta/WHEEL_DELTA; mg.event = 4;
+        return 0;
     }
     case WM_KEYDOWN:
         if (ime.composing || wp == VK_PROCESSKEY) return 0;
@@ -349,6 +354,7 @@ bool mg_open(mg_string title, int32_t width, int32_t height, bool headless) {
 }
 void mg_close(void) {
     mg_pump_close();
+    if (mg.wait_timer) CloseHandle(mg.wait_timer);
     if (mg.window) KillTimer(mg.window,MG_RESIZE_TIMER);
     if (ime.system_caret) DestroyCaret();
     if (mg.window && ime.context) ImmAssociateContext(mg.window, ime.context);
@@ -368,20 +374,38 @@ static int mg_dispatch_messages(void) {
     while (!mg.event) {
         if (mg.stopping || mg.closed) return -1;
         if (ime.pending_update) { ime.pending_update = false; return 10; }
-        DWORD timeout = INFINITE;
-        if (mg.wait_timeout > 0) {
-            ULONGLONG now = GetTickCount64();
-            if (now >= mg.wait_deadline) return 9;
-            timeout = (DWORD)(mg.wait_deadline-now);
+        /* Input wins over an overdue animation wake, including under heavy
+           work. Controls will still sample motion on the resulting frame. */
+        bool queued = PeekMessageW(&msg,NULL,0,0,PM_REMOVE);
+        if (queued) {
+            if (msg.message == WM_QUIT) return -1;
+            TranslateMessage(&msg); DispatchMessageW(&msg);
         }
-        DWORD ready = MsgWaitForMultipleObjectsEx(0,NULL,timeout,QS_ALLINPUT,MWMO_INPUTAVAILABLE);
-        if (ready == WAIT_TIMEOUT) return 9;
+        // PeekMessage can itself dispatch sent messages (resize/close).
+        if (mg.stopping || mg.closed) return -1;
+        if (mg.event) break;
+        int64_t now = mg_clock_ns();
+        if (mg.wait_timeout > 0 && now >= mg.wait_deadline) return 9;
+        if (mg.scroll_animating && now >= mg.scroll_next_ns) {
+            mg.scroll_next_ns += ((now-mg.scroll_next_ns)/8333333+1)*8333333;
+            return MG_EVENT_SCROLL;
+        }
+        if (queued) continue;
+        int64_t deadline = mg.wait_timeout > 0 ? mg.wait_deadline : INT64_MAX;
+        if (mg.scroll_animating && mg.scroll_next_ns < deadline) deadline = mg.scroll_next_ns;
+        DWORD timeout = INFINITE, count = 0;
+        if (deadline != INT64_MAX) {
+            int64_t remaining = deadline-now;
+            /* A per-window high-resolution wait avoids the coarse millisecond
+               message timeout. Never change the system-wide timer period. */
+            LARGE_INTEGER due; due.QuadPart = -(remaining+99)/100;
+            if (mg.wait_timer && SetWaitableTimer(mg.wait_timer,&due,0,NULL,NULL,FALSE)) count = 1;
+            else timeout = (DWORD)((remaining+999999)/1000000);
+        }
+        DWORD ready = MsgWaitForMultipleObjectsEx(count,count ? &mg.wait_timer : NULL,timeout,QS_ALLINPUT,MWMO_INPUTAVAILABLE);
+        if (ready == WAIT_TIMEOUT) continue;
         if (ready == WAIT_FAILED) return -1;
-        if (!PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) continue;
-        if (msg.message == WM_QUIT) return -1;
-        // Space/Enter activate on key-down; WM_CHAR for those must not type into buttons.
-        TranslateMessage(&msg); DispatchMessageW(&msg);
-        if (mg.closed || mg.stopping) return -1;
+        if (count && ready == WAIT_OBJECT_0) continue;
     }
     mg.mods = modifiers(); return mg.event;
 }
@@ -412,6 +436,8 @@ static bool mg_pump_start(void) {
         if (mg.converted_thread) ConvertFiberToThread();
         mg.caller_fiber = NULL; mg.converted_thread = false; return false;
     }
+    mg.wait_timer = CreateWaitableTimerExW(NULL,NULL,CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,TIMER_MODIFY_STATE|SYNCHRONIZE);
+    if (!mg.wait_timer) mg.wait_timer = CreateWaitableTimerW(NULL,FALSE,NULL);
     return true;
 }
 static void mg_yield_event(void) {
@@ -440,14 +466,18 @@ static void mg_pump_close(void) {
     mg.caller_fiber = NULL; mg.converted_thread = false;
 }
 bool mg_display_sync(int32_t fps) { (void)fps; return false; }
+void mg_scroll_animation(bool active) {
+    if (active && !mg.scroll_animating) mg.scroll_next_ns = mg_clock_ns()+8333333;
+    mg.scroll_animating = active;
+}
 int32_t mg_display_hz(void) { return 0; }
 int64_t mg_frame_time_ns(void) { return mg_clock_ns(); }
 int32_t mg_wait(int32_t timeout_ms) {
     if (mg.headless || mg.closed) return -1;
     if (ime.pending_update) { ime.pending_update = false; return 10; }
     if (!mg_pump_start()) { fputs("MyGoose: cannot initialize the UI event pump\n",stderr); return -1; }
-    mg.event = 0; mg.delta = 0.0f; mg.wait_timeout = timeout_ms;
-    mg.wait_deadline = GetTickCount64()+(timeout_ms>0 ? (DWORD)timeout_ms : 0);
+    mg.event = 0; mg.delta = 0.0f; mg.scroll_smooth = false; mg.wait_timeout = timeout_ms;
+    mg.wait_deadline = mg_clock_ns()+(timeout_ms>0 ? (int64_t)timeout_ms*1000000 : 0);
     SwitchToFiber(mg.dispatch_fiber);
     return mg.wait_result;
 }
@@ -455,6 +485,7 @@ float mg_event_x(void) { return mg.x; } float mg_event_y(void) { return mg.y; }
 int32_t mg_event_code(void) { return mg.code; } int32_t mg_event_mods(void) { return mg.mods; }
 float mg_event_delta(void) { return mg.delta; }
 bool mg_event_scroll_pixels(void) { return false; }
+bool mg_event_scroll_smooth(void) { return mg.scroll_smooth; }
 float mg_width(void) { return mg.width / mg.scale; } float mg_height(void) { return mg.height / mg.scale; }
 float mg_measure(mg_string text, float size, bool bold) {
     return mg.dc && text.len ? d2d_layout(text, size, bold)->width : 0.0f;

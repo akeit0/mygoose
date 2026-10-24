@@ -160,6 +160,54 @@ fn dirty_area_cases() {
     assert(!mygoose::damage(c,cache) && mygoose::paint_area(c) == 0.0);
     print("PASS: Performance reports visible sparse paint area, skips hidden diagnostics, handles fallback and overrides\n");
 }
+fn smooth_interaction() {
+    var s = mygoose_performance::Performance { paused: true };
+    var c = mygoose::Context {}; var cache = mygoose::SceneCache {};
+    frame(s,c,cache);
+    mygoose::send(c,mygoose::Event { kind: 4, x: 500.0, y: 650.0, delta: -1.0, scroll_smooth: true });
+    mygoose_performance::render(s,c,cache,false,4);
+    for i in 8 {
+        // Advance the curve deterministically while real layout/paint executes.
+        c.scroll.start_ns -= 16666667;
+        let previous = s.page.offset;
+        mygoose::send(c,mygoose::Event { kind: if i % 2 == 0 { 16 } else { 1 }, x: 500.0 + i, y: 650.0 });
+        assert(mygoose_performance::render(s,c,cache,false,16).painted);
+        assert(s.page.offset > previous);
+        test_support::full_repaint_equal(c,cache,mygoose_charts::paint);
+    }
+    c.scroll.start_ns -= 1000000000;
+    mygoose::send(c,mygoose::Event { kind: 16 });
+    assert(mygoose_performance::render(s,c,cache,false,16).painted);
+    assert(s.page.offset == 72.0 && c.scroll_owner == 0);
+    mygoose::send(c,mygoose::Event { kind: 16 });
+    assert(!mygoose_performance::render(s,c,cache,false,16).painted);
+    // Moving off the nested list cannot cancel or transfer its animation.
+    s.page.offset = s.page.content; frame(s,c,cache); frame(s,c,cache);
+    let page = s.page.offset;
+    mygoose::send(c,mygoose::Event { kind: 4, x: s.list_bounds.x + 40.0, y: s.list_bounds.y + 20.0,
+        delta: -1.0, scroll_smooth: true }); frame(s,c,cache);
+    for i in 8 {
+        c.scroll.start_ns -= 16666667;
+        let previous = s.list.offset;
+        mygoose::send(c,mygoose::Event { kind: 1, x: 10.0, y: 10.0 }); frame(s,c,cache);
+        assert(s.list.offset > previous && s.page.offset == page);
+    }
+    c.scroll.start_ns -= 1000000000;
+    mygoose::send(c,mygoose::Event { kind: 16 }); frame(s,c,cache);
+    assert(s.list.offset == 90.0 && s.page.offset == page && c.scroll_owner == 0);
+    // Running scrolls sample on the app's next paint, with no extra layout at
+    // the native wake rate when the user selected a lower workload cadence.
+    s.paused = false; s.page.offset = 0.0; frame(s,c,cache);
+    mygoose::send(c,mygoose::Event { kind: 4, x: 500.0, y: 650.0, delta: -1.0, scroll_smooth: true });
+    mygoose_performance::render(s,c,cache,false,4);
+    c.scroll.start_ns -= 30000000;
+    let frames = c.frames; let offset = s.page.offset;
+    mygoose::send(c,mygoose::Event { kind: 16 });
+    assert(!mygoose_performance::render(s,c,cache,false,16).painted && c.frames == frames && s.page.offset == offset);
+    mygoose::send(c,mygoose::Event {});
+    assert(mygoose_performance::render(s,c,cache,true,0).painted && s.page.offset > offset);
+    print("PASS: paused smooth-scroll frames keep moving under pointer input, exact final distance, idle stop, nested target ownership and partial/full pixels\n");
+}
 fn main() {
     measurements();
     var capped = mygoose_performance::Performance { rate: 2, synced: true, display_hz: 60 };
@@ -167,7 +215,7 @@ fn main() {
     assert(mygoose_performance::period_ns(capped)==1000000000/60);
     capped.display_hz = 120; assert(mygoose_performance::effective_target(capped)==120);
     capped.synced = false; capped.display_hz = 60; assert(mygoose_performance::effective_target(capped)==120);
-    mygoose::headless_open(1000,760); dirty_area_cases(); hover_cases(); paused_interaction(); var s = mygoose_performance::Performance {};
+    mygoose::headless_open(1000,760); dirty_area_cases(); hover_cases(); paused_interaction(); smooth_interaction(); var s = mygoose_performance::Performance {};
     var c = mygoose::Context {}; var cache = mygoose::SceneCache {};
     frame(s,c,cache);
     s.metrics.fps_history[0] = 600.0; frame(s,c,cache);
