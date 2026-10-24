@@ -3,7 +3,7 @@ import .ui;
 import .scene;
 import .frame;
 
-struct WindowOptions { title: const u8[:] = "MyGoose", width: i32 = 640, height: i32 = 480, dark: bool = true, animate_ms: i32 = 0, display_sync: bool = true }
+struct WindowOptions { title: const u8[:] = "MyGoose", width: i32 = 640, height: i32 = 480, dark: bool = true, animate_ms: i32 = 0, display_sync: bool = true, reduced_motion: bool = false }
 extern fn mg_open(title: const u8[:], width: i32, height: i32, headless: bool) -> bool;
 extern fn mg_close();
 extern fn mg_wait(timeout_ms: i32) -> i32;
@@ -57,6 +57,7 @@ fn run<T, View, Paint>(state: T&, options: WindowOptions = WindowOptions {}) {
     assert(options.width > 0 && options.height > 0);
     assert(mg_open(options.title, options.width, options.height, false));
     var c = Context {}; var cache = SceneCache {};
+    c.reduced_motion = options.reduced_motion;
     if !options.dark { c.theme = light_theme(); }
     var pacer = FramePacer {};
     let synced = options.display_sync && options.animate_ms > 0 && mg_display_sync(frame_rate(options.animate_ms as! i64 * 1000000));
@@ -70,7 +71,7 @@ fn run<T, View, Paint>(state: T&, options: WindowOptions = WindowOptions {}) {
         let kind = if !synced && options.animate_ms > 0 && wait == 0 { 0 } else { mg_wait(wait) };
         if kind < 0 { break; }
         let tick = options.animate_ms <= 0 || frame_tick(pacer, mg_clock_ns(), kind, synced);
-        if !tick && (kind == 0 || kind == 9 || kind == event_scroll) { continue; }
+        if !tick && (kind == 0 || kind == 9 || kind == event_animation) { continue; }
         send_native(c, kind);
         build_frame(c, state, mg_width(), mg_height(), View);
         // Input is consumed immediately; cache only frames actually painted.

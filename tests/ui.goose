@@ -10,6 +10,7 @@ import .table_cases;
 import .interaction_cases;
 import .selection_cases;
 import .scroll_cases;
+import .animation_cases;
 
 struct State {
     count: i64 = 0, checked: bool = false, enabled: bool = true, volume: f32 = 25.0,
@@ -114,6 +115,7 @@ fn main() {
     run_scroll_cases();
     animation_clocks(); pacing(); paced_input();
     mygoose::headless_open(400, 400); native_input_cases();
+    run_animation_cases();
     var c = mygoose::Context {}; var cache = mygoose::SceneCache {}; var s = State {};
     run_damage_cases(c, cache); c = mygoose::Context {}; cache = mygoose::SceneCache {};
     run_button_cases(c, cache); c = mygoose::Context {}; cache = mygoose::SceneCache {};

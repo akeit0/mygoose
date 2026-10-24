@@ -12,6 +12,7 @@ fn run<T, View, Paint>(state: T&, options: mygoose::WindowOptions = mygoose::Win
     assert(options.width > 0 && options.height > 0);
     assert(mygoose::mg_open(options.title, options.width, options.height, false));
     var c = mygoose::Context {}; var cache = mygoose::SceneCache {};
+    c.reduced_motion = reduced_motion || options.reduced_motion;
     var frame = mygoose_motion::Frame { reduced: reduced_motion };
     if !options.dark { c.theme = mygoose::light_theme(); }
     var kind: i32 = 0; var pacer = mygoose::FramePacer {}; var pacing = false; var synced = false;

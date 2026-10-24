@@ -33,6 +33,7 @@ static struct {
     float scale, x, y, delta; double dirty[4];
     Time click_time; int click_x, click_y;
     bool headless, closed, clipboard_valid, captured;
+    bool animations_active; int64_t animation_next_ns;
     uint8_t clipboard_text[65536]; int clipboard_length;
     layout_entry layouts[64]; unsigned next_layout;
     uint64_t ime_owner; XPoint spot;
@@ -276,18 +277,28 @@ int32_t mg_wait(int32_t timeout_ms) {
     for (;;) {
         if (mg.pending) { int kind=mg.pending; mg.pending=0; return kind; }
         if (XPending(mg.display)) { XEvent e; XNextEvent(mg.display, &e); int kind = dispatch(&e); if (kind) return kind; continue; }
-        int64_t remaining = until-mg_clock_ns(); if (remaining <= 0) return 9;
+        int64_t now = mg_clock_ns();
+        if (now >= until) return 9;
+        if (mg.animations_active && now >= mg.animation_next_ns) {
+            mg.animation_next_ns += ((now-mg.animation_next_ns)/8333333+1)*8333333;
+            return MG_EVENT_ANIMATION;
+        }
+        int64_t deadline = until;
+        if (mg.animations_active && mg.animation_next_ns < deadline) deadline = mg.animation_next_ns;
+        int64_t remaining = deadline-now;
         struct pollfd fd = {.fd=ConnectionNumber(mg.display), .events=POLLIN};
-        int result = poll(&fd, 1, timeout_ms > 0 ? (int)((remaining+999999)/1000000) : -1);
+        int result = poll(&fd, 1, deadline != INT64_MAX ? (int)((remaining+999999)/1000000) : -1);
         if (result < 0) { if (errno==EINTR) continue; return -1; }
-        if (!result) return 9;
     }
 }
 float mg_event_x(void) { return mg.x; } float mg_event_y(void) { return mg.y; }
 float mg_event_delta(void) { return mg.delta; } int32_t mg_event_code(void) { return mg.code; }
 bool mg_event_scroll_pixels(void) { return false; }
 bool mg_event_scroll_smooth(void) { return false; }
-void mg_scroll_animation(bool active) { (void)active; }
+void mg_animation_pending(bool active) {
+    if (active && !mg.animations_active) mg.animation_next_ns = mg_clock_ns()+8333333;
+    mg.animations_active = active;
+}
 int32_t mg_event_mods(void) { return mg.mods; }
 float mg_width(void) { return mg.width/mg.scale; } float mg_height(void) { return mg.height/mg.scale; }
 float mg_measure(mg_string text, float size, bool bold) {

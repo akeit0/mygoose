@@ -29,9 +29,9 @@ static struct {
     DWORD pump_thread;
     bool converted_thread, dispatching, stopping;
     int wait_timeout, wait_result;
-    int64_t wait_deadline, scroll_next_ns;
+    int64_t wait_deadline, animation_next_ns;
     HANDLE wait_timer;
-    bool scroll_animating, scroll_smooth;
+    bool animations_active, scroll_smooth;
     RECT dirty;
     uint16_t high_surrogate;
     DWORD click_time;
@@ -386,13 +386,13 @@ static int mg_dispatch_messages(void) {
         if (mg.event) break;
         int64_t now = mg_clock_ns();
         if (mg.wait_timeout > 0 && now >= mg.wait_deadline) return 9;
-        if (mg.scroll_animating && now >= mg.scroll_next_ns) {
-            mg.scroll_next_ns += ((now-mg.scroll_next_ns)/8333333+1)*8333333;
-            return MG_EVENT_SCROLL;
+        if (mg.animations_active && now >= mg.animation_next_ns) {
+            mg.animation_next_ns += ((now-mg.animation_next_ns)/8333333+1)*8333333;
+            return MG_EVENT_ANIMATION;
         }
         if (queued) continue;
         int64_t deadline = mg.wait_timeout > 0 ? mg.wait_deadline : INT64_MAX;
-        if (mg.scroll_animating && mg.scroll_next_ns < deadline) deadline = mg.scroll_next_ns;
+        if (mg.animations_active && mg.animation_next_ns < deadline) deadline = mg.animation_next_ns;
         DWORD timeout = INFINITE, count = 0;
         if (deadline != INT64_MAX) {
             int64_t remaining = deadline-now;
@@ -466,9 +466,9 @@ static void mg_pump_close(void) {
     mg.caller_fiber = NULL; mg.converted_thread = false;
 }
 bool mg_display_sync(int32_t fps) { (void)fps; return false; }
-void mg_scroll_animation(bool active) {
-    if (active && !mg.scroll_animating) mg.scroll_next_ns = mg_clock_ns()+8333333;
-    mg.scroll_animating = active;
+void mg_animation_pending(bool active) {
+    if (active && !mg.animations_active) mg.animation_next_ns = mg_clock_ns()+8333333;
+    mg.animations_active = active;
 }
 int32_t mg_display_hz(void) { return 0; }
 int64_t mg_frame_time_ns(void) { return mg_clock_ns(); }

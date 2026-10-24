@@ -4,6 +4,7 @@ import .geom;
 import .damage;
 import .scroll_motion;
 import .frame;
+import .animation;
 
 // Fixed storage deliberately bounds memory and makes overflow explicit.
 let max_nodes: i32 = 1024;
@@ -87,7 +88,7 @@ struct Event {
     // 0=none, 1=move, 2=press, 3=release, 4=wheel, 5=key, 6=Unicode scalar,
     // 7=blur/dismiss focus, 8=resize/DPI, 9=timer, 10=IME preedit, 11=commit, 12=cancel/end,
     // 13=lost native pointer capture (keyboard focus is retained), 14=context menu request,
-    // 15=display frame, 16=scroll animation wake.
+    // 15=display frame, 16=UI animation wake.
     kind: i32 = 0, x: f32 = 0.0, y: f32 = 0.0, code: i32 = 0, delta: f32 = 0.0,
     shift: bool = false, ctrl: bool = false, scroll_pixels: bool = false, scroll_smooth: bool = false
 }
@@ -182,6 +183,7 @@ struct Context {
     pointer: PointerState = PointerState {},
     scroll: ScrollMotion = ScrollMotion {}, scroll_owner: u64 = 0,
     scroll_seen: bool = false, frame_ns: i64 = 0,
+    animations: AnimationCache = AnimationCache {}, reduced_motion: bool = false,
     changed: bool = false, keyboard_focus: bool = false, dirty: Rect = Rect {}, force: bool = true,
     regions: DamageRegions = DamageRegions {}, paint_regions: i32 = 0,
     last_background: u32 = 0, frames: i64 = 0, paints: i64 = 0,
@@ -197,7 +199,15 @@ extern fn mg_clipboard_set(text: const u8[:]) -> bool;
 // 0: arrow, 1: horizontal resize. Applied centrally after layout and hit testing.
 extern fn mg_cursor(shape: i32);
 extern fn mg_capture(enabled: bool) -> bool;
-extern fn mg_scroll_animation(active: bool);
+extern fn mg_animation_pending(active: bool);
+
+// Keys use the same parent scope as controls. Channel zero is for custom
+// view properties; built-in controls reserve their own channels.
+fn animate(c: Context&, key: const u8[:], target: f32, options: Transition = Transition {}) -> f32 {
+    assert(key.len > 0);
+    let seed = if c.parent >= 0 { c.nodes[c.parent].id } else { 14695981039346656037 };
+    animation_value(c.animations, hash_text(key, seed), 0, target, c.frame_ns, options, c.reduced_motion)
+}
 
 fn node_text(c: Context&, i: i32) -> u8[:] {
     let n .= c.nodes[i]; c.text_bytes[n.start..n.start + n.length]
@@ -432,7 +442,8 @@ fn composition(c: Context&, value: const u8[:], cursor: i64 = 0, target_start: i
 fn begin(c: Context&, width: f32, height: f32) {
     if c.width != width || c.height != height { c.force = true; cancel_pointer(c, cancel_resize); c.scroll_owner = 0; }
     c.width = width; c.height = height; c.count = 0; c.text_count = 0; c.parent = -1; c.changed = false;
-    c.frame_ns = mg_frame_time_ns(); c.scroll_seen = false;
+    c.frame_ns = max(c.frame_ns, mg_frame_time_ns()); c.scroll_seen = false;
+    begin_animations(c.animations);
     let root = add(c, 0, "", "root");
     c.nodes[root].box = Box { width: width, height: height, align: 3 };
     c.parent = root;
@@ -535,7 +546,10 @@ fn checkbox(c: Context&, label: const u8[:], value: bool&, options: CheckOptions
 }
 fn toggle(c: Context&, label: const u8[:], value: bool&, options: CheckOptions = CheckOptions {}) -> bool {
     let i = add(c, 5, label, options.key); c.nodes[i].disabled = options.disabled;
-    let yes = activated(c, i); if yes { value = !value; } c.nodes[i].checked = value; yes
+    let yes = activated(c, i); if yes { value = !value; } c.nodes[i].checked = value;
+    c.nodes[i].value = animation_value(c.animations, c.nodes[i].id, 1, if value { 1.0 } else { 0.0 },
+        c.frame_ns, Transition {}, c.reduced_motion);
+    yes
 }
 fn radio(c: Context&, label: const u8[:], selected: bool, options: CheckOptions = CheckOptions {}) -> bool {
     var value = selected; checkbox(c, label, value, options)

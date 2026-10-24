@@ -92,6 +92,7 @@ fn finish(c: Context&) {
     if c.event.kind != 7 { for i: i32 in c.count { if c.nodes[i].id == pointer && !c.nodes[i].disabled { cursor = c.nodes[i].cursor; break; } } }
     mg_cursor(cursor);
     sync_ime(c);
+    finish_animations(c.animations);
     c.frames += 1;
 }
 fn layout_context_menu(c: Context&) {
@@ -206,6 +207,14 @@ fn paint_area(c: Context&) -> f32 {
     rect_area(c.dirty)
 }
 fn draw_rect(r: Rect, radius: f32, color: u32) { if r.w > 0.0 && r.h > 0.0 { mg_rect(r.x, r.y, r.w, r.h, radius, color); } }
+fn transition_color(from: u32, target: u32, amount: f32) -> u32 {
+    var color: u32 = 0;
+    for shift in [0, 8, 16] {
+        let a = ((from >> shift) & 255) as! f32; let b = ((target >> shift) & 255) as! f32;
+        color |= ((a + (b - a) * amount + 0.5) as! u32) << shift;
+    }
+    color
+}
 fn no_extra_paint(c: Context&, index: i32) {}
 fn paint(c: Context&) { paint(c, no_extra_paint); }
 // Optional modules supply a compile-time painter; the basic specialization
@@ -277,8 +286,10 @@ fn paint<Extra>(c: Context&) {
         }
         if n.kind == 4 || n.kind == 5 {
             let w: f32 = if n.kind == 4 { 18.0 } else { 36.0 }; let y = r.y + (r.h - 18.0) * 0.5;
-            draw_rect(Rect { r.x, y, w, 18.0 }, if n.kind == 4 { 4.0 } else { 9.0 }, if n.checked { c.theme.accent } else { c.theme.border });
-            if n.kind == 5 { draw_rect(Rect { r.x + (if n.checked { 20.0 } else { 2.0 }), y + 2.0, 14.0, 14.0 }, 7.0, 0xffffff); }
+            let track = if n.kind == 5 { transition_color(c.theme.border, c.theme.accent, n.value) }
+                else { if n.checked { c.theme.accent } else { c.theme.border } };
+            draw_rect(Rect { r.x, y, w, 18.0 }, if n.kind == 4 { 4.0 } else { 9.0 }, track);
+            if n.kind == 5 { draw_rect(Rect { r.x + 2.0 + 18.0 * n.value, y + 2.0, 14.0, 14.0 }, 7.0, 0xffffff); }
             else { if n.checked { mg_text("✓", r.x + 3.0, y - 1.0, 14.0, true, 0xffffff); } }
             mg_text(node_text(c, i), r.x + w + 10.0, text_y, n.size, false, color);
             if n.id == c.focus { draw_rect(Rect { r.x + w + 10.0, r.y + r.h - 2.0, max(0.0, r.w - w - 10.0), 1.0 }, 0.0, c.theme.accent); }
@@ -310,8 +321,9 @@ fn clip_leaf(c: Context&, index: i32) -> bool {
 }
 fn build_frame<T, View>(c: Context&, state: T&, width: f32, height: f32) {
     begin(c, width, height); View(state, c); finish(c); let changed = c.changed;
+    let frame_ns = c.frame_ns;
     finish_input(c);
-    if changed { begin(c, width, height); View(state, c); finish(c); }
+    if changed { begin(c, width, height); c.frame_ns = frame_ns; View(state, c); finish(c); }
     if !c.scroll_seen { c.scroll_owner = 0; }
-    mg_scroll_animation(c.scroll_owner != 0);
+    mg_animation_pending(c.scroll_owner != 0 || c.animations.active);
 }

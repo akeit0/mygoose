@@ -28,6 +28,7 @@ static struct {
     mg_dispatch_stack dispatch_stack;
     bool dispatching,on_dispatch,stopping;
     int wait_timeout,wait_result; double wait_deadline;
+    bool animations_active; int64_t animation_next_ns;
     NSTimer *resize_timer,*wait_timer; NSInteger wait_serial;
     CADisplayLink *display_link; int display_rate,display_applied; int64_t frame_ns;
     int pointer_shape;
@@ -456,10 +457,17 @@ int32_t mg_wait(int32_t timeout_ms) {
     if (!mg.dispatch_stack.mapping && !mg_stack_create(&mg.dispatch_stack,mg_dispatch_main)) {
         fputs("MyGoose: cannot initialize the UI event pump\n",stderr); return -1;
     }
-    mg.event=0; mg.delta=0; mg.scroll_pixels=false; mg.wait_timeout=timeout_ms;
-    mg.wait_deadline=NSDate.timeIntervalSinceReferenceDate+timeout_ms/1000.0;
+    int64_t caller_deadline=timeout_ms>0 ? mg_clock_ns()+(int64_t)timeout_ms*1000000 : INT64_MAX;
+    int effective_timeout=timeout_ms;
+    if (mg.animations_active) {
+        int64_t remaining=mg.animation_next_ns-mg_clock_ns();
+        int animation_timeout=remaining>0 ? (int)((remaining+999999)/1000000) : 1;
+        if (effective_timeout<=0 || animation_timeout<effective_timeout) effective_timeout=animation_timeout;
+    }
+    mg.event=0; mg.delta=0; mg.scroll_pixels=false; mg.wait_timeout=effective_timeout;
+    mg.wait_deadline=NSDate.timeIntervalSinceReferenceDate+effective_timeout/1000.0;
     mg.wait_serial++;
-    if (timeout_ms>0) {
+    if (effective_timeout>0) {
         NSDate *date=[[NSDate alloc] initWithTimeIntervalSinceReferenceDate:mg.wait_deadline];
         mg.wait_timer=[[NSTimer alloc] initWithFireDate:date interval:0 target:mg.delegate selector:@selector(waitTick:) userInfo:nil repeats:NO];
         [date release]; mg.wait_timer.tolerance=0;
@@ -467,12 +475,20 @@ int32_t mg_wait(int32_t timeout_ms) {
     }
     mg.on_dispatch=true; mg_context_swap(&mg.dispatch_stack.caller,&mg.dispatch_stack.dispatch); mg.on_dispatch=false;
     [mg.wait_timer invalidate]; [mg.wait_timer release]; mg.wait_timer=nil;
+    int64_t now=mg_clock_ns();
+    if (mg.wait_result==9 && now<caller_deadline && mg.animations_active && now>=mg.animation_next_ns) {
+        mg.animation_next_ns+=((now-mg.animation_next_ns)/8333333+1)*8333333;
+        return MG_EVENT_ANIMATION;
+    }
     return mg.wait_result;
 }
 float mg_event_x(void) { return mg.x; } float mg_event_y(void) { return mg.y; } float mg_event_delta(void) { return mg.delta; }
 bool mg_event_scroll_pixels(void) { return mg.scroll_pixels; }
 bool mg_event_scroll_smooth(void) { return false; }
-void mg_scroll_animation(bool active) { (void)active; }
+void mg_animation_pending(bool active) {
+    if (active && !mg.animations_active) mg.animation_next_ns=mg_clock_ns()+8333333;
+    mg.animations_active=active;
+}
 int32_t mg_event_code(void) { return mg.code; } int32_t mg_event_mods(void) { return mg.mods; }
 float mg_width(void) { return mg.width/mg.scale; } float mg_height(void) { return mg.height/mg.scale; }
 static mg_font *font_for(float size,bool bold) {

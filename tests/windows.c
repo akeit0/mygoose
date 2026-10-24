@@ -59,20 +59,20 @@ static void wheel_cases(void) {
     assert(next_input(4)==4 && !mg_event_scroll_pixels() && mg_event_scroll_smooth());
     assert(mg.delta==-1.0f); // Input stays intact; controls animate destinations.
     assert(mg.x==24.0f/mg.scale && mg.y==32.0f/mg.scale);
-    mg_scroll_animation(true);
-    int64_t next = mg.scroll_next_ns;
-    mg.scroll_next_ns = mg_clock_ns()+1000000000;
+    mg_animation_pending(true);
+    int64_t next = mg.animation_next_ns;
+    mg.animation_next_ns = mg_clock_ns()+1000000000;
     assert(mg_wait(1)==9); // A short caller deadline still wins.
-    mg.scroll_next_ns = next;
+    mg.animation_next_ns = next;
     for (int i=0;i<5;i++) {
-        assert(mg_wait(0)==MG_EVENT_SCROLL);
+        assert(mg_wait(0)==MG_EVENT_ANIMATION);
         assert(mg.delta==0.0f && !mg_event_scroll_smooth());
         assert(mg.x==24.0f/mg.scale && mg.y==32.0f/mg.scale);
     }
-    mg.scroll_next_ns = mg_clock_ns()-1;
+    mg.animation_next_ns = mg_clock_ns()-1;
     PostMessageW(mg.window,WM_KEYDOWN,VK_RIGHT,0);
     assert(mg_wait(0)==5); // A late animation cannot starve queued input.
-    mg_scroll_animation(false);
+    mg_animation_pending(false);
     assert(mg_wait(2)==9); // No animation wakes once the control finishes.
     PostMessageW(mg.window,WM_MOUSEWHEEL,MAKEWPARAM(0,-30),MAKELPARAM(p.x,p.y));
     assert(next_input(4)==4 && mg.delta==-0.25f && !mg_event_scroll_smooth());

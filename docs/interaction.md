@@ -117,8 +117,9 @@ Fractional wheel input and macOS scrolling remain direct.
 
 `Event.scroll_smooth` marks coarse input to animate. Custom loops continue to
 pass every native event through `send_native` and build with `build_frame`.
-Event 16 requests an animation frame while a scroll is active; it carries no
+Event 16 requests a UI animation frame while a scroll or context transition is active; it carries no
 wheel delta and never moves the pointer. The normal paint cadence still applies
 in animated apps. Paused and idle apps can paint these wakes immediately.
 Windows uses a high-resolution waitable timer when available, with a regular
-timer fallback, and stops requesting wakes when the animation finishes.
+timer fallback. AppKit uses its timed run loop and X11 uses a bounded poll wait.
+Wakes stop when all scroll and control transitions finish.

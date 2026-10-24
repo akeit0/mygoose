@@ -41,6 +41,36 @@ The runner sleeps when motion settles, unless `options.animate_ms` requests
 continuous updates. See [motion and drawing](rich.md) for timing, easing and
 reduced motion.
 
+## Automatic control transitions
+
+`toggle` automatically animates its knob and track color over 160 ms. The
+Boolean changes immediately; the context owns the visual transition. Existing
+calls need no extra application state or motion package. Give each toggle a
+stable `CheckOptions.key`, especially when controls move or change labels.
+
+Custom views can use the same context cache:
+
+```goose
+let height = mygoose::animate(c, "details-height",
+    if state.expanded { 200.0 } else { 0.0 },
+    mygoose::Transition { duration_ms: 180.0 });
+```
+
+Keys are scoped to the current parent. First appearance starts at the target;
+subsequent target changes ease from the current visual value. Reversing a
+transition preserves position. Built-in controls use separate cache channels,
+so a custom property cannot replace a toggle's transition at the same key.
+One timestamp is shared across both builds of a logical frame.
+
+The bounded cache retains up to 128 property tracks while their controls or
+`animate` calls are present, including settled tracks. Removed entries are
+reclaimed after the build. New entries beyond capacity snap to their targets
+without changing interaction or evicting a live entry. The normal runner wakes
+only while a transition or scroll is active and stops after its final frame.
+Use `WindowOptions.reduced_motion` or `Context.reduced_motion` to snap context
+transitions. Caller-owned `Tween`/`Spring` tracks remain available for explicit
+playback and simulation through the motion package.
+
 ## Layout, identity and input
 
 Use `row` and `column` with trailing blocks. They close their containers on

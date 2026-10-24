@@ -10,6 +10,18 @@ static void send_input(int type, int x, int y, unsigned int detail) {
     XSendEvent(mg.display,mg.window,False,mask,&event); XFlush(mg.display);
 }
 static void next_input(int kind) { for (int i=0;i<100;i++) { if (mg_wait(20)==kind) return; } assert(!"Expected X11 event"); }
+static void animation_tests(void) {
+    while (mg_wait(1)!=9) {}
+    float x=mg.x,y=mg.y;
+    mg_animation_pending(true);
+    int64_t next=mg.animation_next_ns; mg.animation_next_ns=mg_clock_ns()+1000000000;
+    assert(mg_wait(1)==9); mg.animation_next_ns=next;
+    for (int i=0;i<3;i++) {
+        assert(mg_wait(0)==MG_EVENT_ANIMATION && mg.delta==0.0f && mg.x==x && mg.y==y);
+    }
+    mg_animation_pending(false); assert(mg_wait(2)==9);
+    puts("PASS: X11 animation wakes, caller deadlines, preserved pointer/input and idle stop");
+}
 int main(void) {
     setenv("MYGOOSE_HIDDEN","1",1);
     mg_string title={(const uint8_t *)"X11 test",8}; assert(mg_open(title,200,150,false));
@@ -26,6 +38,7 @@ int main(void) {
         XSync(mg.display,False);
         while (XPending(mg.display)) { XEvent pending; XNextEvent(mg.display,&pending); }
     }
+    animation_tests();
     send_input(MotionNotify,20,30,0); next_input(1); assert(mg.x==20/mg.scale && mg.y==30/mg.scale);
     send_input(ButtonPress,20,30,1); next_input(2); assert(mg.code==1);
     send_input(ButtonRelease,20,30,1); next_input(3);

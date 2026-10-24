@@ -10,10 +10,10 @@ typedef struct { uint8_t *data; int64_t len; } mg_bytes;
 bool mg_open(mg_string title, int32_t width, int32_t height, bool headless);
 void mg_close(void);
 int32_t mg_wait(int32_t timeout_ms);
-enum { MG_EVENT_FRAME = 15, MG_EVENT_SCROLL = 16 }; /* 12 remains IME cancellation. */
-/* Request scroll-animation wakes. Controls sample their own destinations at
-   frame time; the backend must never synthesize or split wheel deltas. */
-void mg_scroll_animation(bool active);
+enum { MG_EVENT_FRAME = 15, MG_EVENT_ANIMATION = 16 }; /* 12 remains IME cancellation. */
+/* Request UI-animation wakes while any transition or scroll is active.
+   Controls sample at frame time; wakes never synthesize input deltas. */
+void mg_animation_pending(bool active);
 /* Enable a display-paced frame event (15), or disable with fps=0. False means
    unsupported/headless: use timed FramePacer waits instead. Never drives UI
    work on another thread. Display refresh is an upper bound on the request. */

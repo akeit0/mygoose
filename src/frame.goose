@@ -5,7 +5,7 @@ import std;
 // window display's cadence. Zero disables sync; unsupported backends return
 // false so callers keep using absolute timed deadlines.
 let event_frame: i32 = 15;
-let event_scroll: i32 = 16;
+let event_animation: i32 = 16;
 extern fn mg_display_sync(fps: i32) -> bool;
 extern fn mg_display_hz() -> i32;
 // Sample animation at the upcoming presentation time on event_frame. Duration

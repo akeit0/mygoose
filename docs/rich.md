@@ -1,9 +1,10 @@
 # Rich UI with an optional cost
 
 MyGoose's basic layer stays responsible for controls, layout, text editing and
-damage tracking. Richness belongs in separate packages with their own state and
-native objects. Importing/calling a feature must not add buffers or registries
-to every `Context` or `Node`.
+damage tracking, scrolling and a bounded cache for automatic control transitions.
+Custom drawing and explicit motion belong in separate packages with their own
+state and native objects. Importing an optional package adds no further buffers
+or registries to `Context` or `Node`.
 
 MyGo's [paths](https://github.com/egoist/mygo/blob/5fb60098a44a4c629cbdeac5f0ff80ce2f843c2f/ui/path.go),
 [motion](https://github.com/egoist/mygo/blob/5fb60098a44a4c629cbdeac5f0ff80ce2f843c2f/ui/motion.go),
@@ -14,9 +15,9 @@ clipped vector drawing region in the existing window framebuffer.
 
 | Package | Available now | Cost when unused |
 | --- | --- | --- |
-| `mygoose` | Existing controls, flex layout, text, dropdowns and shadows | Baseline |
+| `mygoose` | Controls, automatic toggle transitions, keyed property animation, flex layout, text, dropdowns and shadows | Baseline includes 128 cached property tracks per context |
 | `extras/graphics` | Paths, solid fill/stroke, rounded rectangles, ellipses/circles, lines, quadratic/cubic curves, opacity, translation, rotation, uniform scale | Native vector object omitted; no core storage added |
-| `extras/motion` | Retargetable tweens, compile-time easing, analytic springs, reduced-motion override and settling | No tracks, clock updates or timers added to basic run |
+| `extras/motion` | Caller-owned tweens, compile-time easing, analytic springs, reduced-motion override and settling | No additional core cache or timers |
 | `extras/motion/app` | Event loop for animated standard controls, independently of vector drawing | No vector object or canvas storage |
 | `extras/images` | Immutable RGBA bitmaps, scaling, clipping, opacity; used for Windows/macOS process icons | Native image object omitted; storage allocated only for uploaded images |
 | `extras/window` | Windows custom caption and controls; macOS integrated caption with native traffic lights | Native frame object and DWM dependency omitted; no core node/context storage |
@@ -98,7 +99,8 @@ decoders, gradients, arbitrary affine matrices, masks, cached layers or filters.
 
 ## Motion and scheduling
 
-`Tween` and `Spring` live in application state. They have no global track map,
+For routine control/view transitions, use the [context cache](api.md#automatic-control-transitions).
+`Tween` and `Spring` support explicit motion and live in application state. They have no global track map,
 IDs, heap objects or closures. One monotonic timestamp is shared across both
 builds of a logical frame, so event-driven rebuilding never advances a track
 twice. Durations use milliseconds and spring frequency uses Hz. Spring damping
@@ -126,8 +128,10 @@ reduced-motion preferences automatically remains future work.
 
 The packages have their own sidecars and are not imported by `mygoose.goose`.
 The renderer's extra painter is a compile-time parameter, with an empty basic
-specialization. `Context` and `Node` are unchanged. The motion clock exists only
-in the rich runner; ordinary windows block while idle.
+specialization. Optional packages add no storage to `Context` or `Node`.
+The core's control-transition cache shares its frame scheduler with scrolling;
+ordinary windows block once motion settles. The explicit motion clock remains
+in the motion runner.
 
 Native vectors are a separate C object for each OS. They query an opaque drawing
 target only when called. Windows reuses Direct2D; Linux reuses Cairo;

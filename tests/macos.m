@@ -42,6 +42,15 @@ static void wait_tests(void) {
     int64_t start=mg_clock_ns();
     assert(mg_wait(5)==9 && mg_clock_ns()-start>=4000000 && !mg.wait_timer);
     for (int i=0;i<20;i++) { assert(mg_wait(1)==9 && !mg.wait_timer); }
+    float x=mg.x,y=mg.y;
+    mg_animation_pending(true);
+    int64_t next=mg.animation_next_ns; mg.animation_next_ns=mg_clock_ns()+1000000000;
+    assert(mg_wait(1)==9 && !mg.wait_timer); mg.animation_next_ns=next;
+    for (int i=0;i<3;i++) {
+        assert(mg_wait(0)==MG_EVENT_ANIMATION && !mg.wait_timer);
+        assert(mg.delta==0 && mg.x==x && mg.y==y);
+    }
+    mg_animation_pending(false); assert(mg_wait(2)==9 && !mg.wait_timer);
     [driver release];
     puts("PASS: timed/indefinite AppKit waits, input interruption, timer cleanup and stale deadline markers");
 }
